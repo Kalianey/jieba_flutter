@@ -21,11 +21,15 @@ class WordDictionary {
 
   WordDictionary();
 
-  static Future<WordDictionary> getInstance() async {
+  //Added {String? dictContent} to handle isolates
+  static Future<WordDictionary> getInstance({String? dictContent}) async {
     if (singleton == null) {
       singleton = WordDictionary();
-      await singleton?.loadDict();
-      return singleton!;
+      if (dictContent != null) {
+        await singleton!.loadDictFromString(dictContent);
+      } else {
+        await singleton!.loadDict(); // default fallback if used outside isolate
+      }
     }
     return singleton!;
   }
@@ -66,27 +70,53 @@ class WordDictionary {
     freqs.clear();
   }
 
-  Future<void> loadDict() async {
+  //Added to handle isolates
+  Future<void> loadDictFromString(String content) async {
     _dict = DictSegment('');
-    var file = await rootBundle.loadString(MAIN_DICT);
-    for (var line in file.split("\n")) {
-      List<String> tokens = line.split("[\t ]+");
-
-      if (tokens.length < 2) {
-        continue;
-      }
+    for (var line in content.split("\n")) {
+      List<String> tokens = line.trim().split(RegExp(r"[\t ]+"));
+      if (tokens.length < 2) continue;
 
       String word = tokens[0];
-      double freq = double.parse(tokens[1]);
+      double freq = double.tryParse(tokens[1]) ?? 0.0;
       total += freq;
       word = addWord(word)!;
       freqs[word] = freq;
     }
-    // normalize
+
     freqs.forEach((key, value) {
       freqs[key] = log(value / total);
       minFreq = min(value, minFreq);
     });
+  }
+
+  //Added try/catch to handle exception when working in isolates
+  Future<void> loadDict() async {
+    try {
+      _dict = DictSegment('');
+      var file = await rootBundle.loadString(MAIN_DICT);
+      for (var line in file.split("\n")) {
+        List<String> tokens = line.split("[\t ]+");
+
+        if (tokens.length < 2) {
+          continue;
+        }
+
+        String word = tokens[0];
+        double freq = double.parse(tokens[1]);
+        total += freq;
+        word = addWord(word)!;
+        freqs[word] = freq;
+      }
+      // normalize
+      freqs.forEach((key, value) {
+        freqs[key] = log(value / total);
+        minFreq = min(value, minFreq);
+      });
+    } catch (e) {
+      throw UnsupportedError(
+          'Default loadDict() using rootBundle is not supported in isolate. Use loadDictFromString instead.');
+    }
   }
 
   String? addWord(String word) {

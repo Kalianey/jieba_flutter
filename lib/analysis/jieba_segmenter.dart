@@ -13,10 +13,13 @@ enum SegMode { INDEX, SEARCH }
 class JiebaSegmenter {
   static WordDictionary? wordDict;
   static FinalSeg? finalSeg;
-  static Future<void>  init() async{
-    wordDict = await WordDictionary.getInstance();
+
+  //Added dictContent to handle isolates
+  static Future<void> init({required String dictContent}) async {
+    wordDict = await WordDictionary.getInstance(dictContent: dictContent);
     finalSeg = await FinalSeg.getInstance();
   }
+
   /// initialize the user dictionary.
   ///
   /// @param path user dict dir
@@ -73,8 +76,8 @@ class JiebaSegmenter {
     for (int i = N - 1; i > -1; i--) {
       Pair<int>? candidate;
       for (int x in dag[i]!) {
-        double freq =
-            wordDict!.getFreq(sentence.substring(i, x + 1)) + route[x + 1]!.freq;
+        double freq = wordDict!.getFreq(sentence.substring(i, x + 1)) +
+            route[x + 1]!.freq;
         if (null == candidate) {
           candidate = Pair<int>(x, freq);
         } else if (candidate.freq < freq) {
