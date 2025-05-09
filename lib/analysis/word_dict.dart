@@ -1,11 +1,7 @@
 import 'dart:collection';
 import 'dart:io';
 import 'dart:math';
-
-import 'package:flutter/services.dart';
-
 import '../conversion/common_conversion_definition.dart';
-
 import 'dict_segment.dart';
 
 class WordDictionary {
@@ -21,15 +17,11 @@ class WordDictionary {
 
   WordDictionary();
 
-  //Added {String? dictContent} to handle isolates
-  static Future<WordDictionary> getInstance({String? dictContent}) async {
+  static Future<WordDictionary> getInstance() async {
     if (singleton == null) {
       singleton = WordDictionary();
-      if (dictContent != null) {
-        await singleton!.loadDictFromString(dictContent);
-      } else {
-        await singleton!.loadDict(); // default fallback if used outside isolate
-      }
+      await singleton?.loadDict();
+      return singleton!;
     }
     return singleton!;
   }
@@ -70,53 +62,32 @@ class WordDictionary {
     freqs.clear();
   }
 
-  //Added to handle isolates
-  Future<void> loadDictFromString(String content) async {
+  Future<void> loadDict() async {
     _dict = DictSegment('');
-    for (var line in content.split("\n")) {
-      List<String> tokens = line.trim().split(RegExp(r"[\t ]+"));
-      if (tokens.length < 2) continue;
+    // var file = await rootBundle.loadString(MAIN_DICT);
+
+    final file = File(MAIN_DICT);
+    final content = await file.readAsLines();
+
+    // for (var line in file.split("\n")) {
+    for (var line in content) {
+      List<String> tokens = line.split("[\t ]+");
+
+      if (tokens.length < 2) {
+        continue;
+      }
 
       String word = tokens[0];
-      double freq = double.tryParse(tokens[1]) ?? 0.0;
+      double freq = double.parse(tokens[1]);
       total += freq;
       word = addWord(word)!;
       freqs[word] = freq;
     }
-
+    // normalize
     freqs.forEach((key, value) {
       freqs[key] = log(value / total);
       minFreq = min(value, minFreq);
     });
-  }
-
-  //Added try/catch to handle exception when working in isolates
-  Future<void> loadDict() async {
-    try {
-      _dict = DictSegment('');
-      var file = await rootBundle.loadString(MAIN_DICT);
-      for (var line in file.split("\n")) {
-        List<String> tokens = line.split("[\t ]+");
-
-        if (tokens.length < 2) {
-          continue;
-        }
-
-        String word = tokens[0];
-        double freq = double.parse(tokens[1]);
-        total += freq;
-        word = addWord(word)!;
-        freqs[word] = freq;
-      }
-      // normalize
-      freqs.forEach((key, value) {
-        freqs[key] = log(value / total);
-        minFreq = min(value, minFreq);
-      });
-    } catch (e) {
-      throw UnsupportedError(
-          'Default loadDict() using rootBundle is not supported in isolate. Use loadDictFromString instead.');
-    }
   }
 
   String? addWord(String word) {

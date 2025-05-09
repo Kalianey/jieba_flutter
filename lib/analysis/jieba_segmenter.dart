@@ -13,10 +13,8 @@ enum SegMode { INDEX, SEARCH }
 class JiebaSegmenter {
   static WordDictionary? wordDict;
   static FinalSeg? finalSeg;
-
-  //Added dictContent to handle isolates
-  static Future<void> init({required String dictContent}) async {
-    wordDict = await WordDictionary.getInstance(dictContent: dictContent);
+  static Future<void> init() async {
+    wordDict = await WordDictionary.getInstance();
     finalSeg = await FinalSeg.getInstance();
   }
 
